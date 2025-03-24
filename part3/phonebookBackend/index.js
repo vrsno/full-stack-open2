@@ -13,6 +13,7 @@ app.use(express.json());
 app.use(morgan("tiny"));
 
 // Servir el frontend desde la carpeta "dist"
+
 app.use(express.static("dist"));
 
 let persons = [
