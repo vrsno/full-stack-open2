@@ -1,8 +1,11 @@
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const app = express();
 const path = require("path");
 const morgan = require("morgan");
+
+const Person = require("./models/person");
 
 // config morgan con tiny
 //app.use(morgan("tiny"));
@@ -41,7 +44,10 @@ app.get("/", (request, response) => {
 
 // rut api/persons
 app.get("/api/persons", (request, response) => {
-  response.json(persons);
+  Person.find({}).then((persons) => {
+    console.log(persons); // 🔍 Verifica qué datos está obteniendo desde MongoDB
+    response.json(persons);
+  });
 });
 
 //ruta info
@@ -66,23 +72,22 @@ app.get("/info", (request, response) => {
 
 // mostrar por id
 app.get("/api/persons/:id", (request, response) => {
-  const id = Number(request.params.id);
-  const note = persons.find((note) => note.id === id);
-
-  if (note) {
-    response.json(note);
-  } else {
-    response.status(404).end();
-  }
+  Person.findById(request.params.id).then((person) => {
+    if (person) {
+      response.json(person);
+    } else {
+      response.status(404).json({ error: "Person not found" });
+    }
+  });
 });
 
 // delete por http. id 4 deleted
 app.delete("/api/persons/:id", (request, response) => {
-  const id = Number(request.params.id);
-
-  persons = persons.filter((person) => person.id !== id);
-
-  response.status(204).end();
+  Person.findByIdAndDelete(request.params.id)
+    .then(() => response.status(204).end())
+    .catch((error) =>
+      response.status(500).json({ error: "Error deleting person" })
+    );
 });
 
 // post
@@ -91,28 +96,17 @@ const generateId = () => {
   return maxId + 1;
 };
 app.post("/api/persons", (request, response) => {
-  const body = request.body;
+  const { name, phone } = request.body;
 
-  if (!body.name || !body.tel) {
-    return response.status(400).json({ error: "name or number missing" });
+  if (!name || !phone) {
+    return response.status(400).json({ error: "Name and phone are required" });
   }
 
-  const nameExists = persons.some(
-    (person) => person.name.toLowerCase() === body.name.toLowerCase()
-  );
-  if (nameExists) {
-    return response.status(400).json({ error: "name must be unique" });
-  }
+  const person = new Person({ name, phone });
 
-  const newPerson = {
-    name: body.name,
-    tel: body.tel,
-    id: generateId(),
-  };
-
-  persons = persons.concat(newPerson);
-
-  response.json(newPerson);
+  person.save().then((savedPerson) => {
+    response.json(savedPerson);
+  });
 });
 
 // Servir el frontend en caso de rutas desconocidas
@@ -121,7 +115,7 @@ app.get("*", (req, res) => {
 });
 
 // Definir puerto para Render u otro servidor
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
