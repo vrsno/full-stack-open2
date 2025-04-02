@@ -45,7 +45,7 @@ app.get("/", (request, response) => {
 // rut api/persons
 app.get("/api/persons", (request, response) => {
   Person.find({}).then((persons) => {
-    console.log(persons); // 🔍 Verifica qué datos está obteniendo desde MongoDB
+    console.log(persons); //
     response.json(persons);
   });
 });
@@ -82,12 +82,10 @@ app.get("/api/persons/:id", (request, response) => {
 });
 
 // delete por http. id 4 deleted
-app.delete("/api/persons/:id", (request, response) => {
+app.delete("/api/persons/:id", (request, response, next) => {
   Person.findByIdAndDelete(request.params.id)
     .then(() => response.status(204).end())
-    .catch((error) =>
-      response.status(500).json({ error: "Error deleting person" })
-    );
+    .catch((error) => next(error));
 });
 
 // post
@@ -95,6 +93,7 @@ const generateId = () => {
   const maxId = persons.length > 0 ? Math.max(...persons.map((n) => n.id)) : 0;
   return maxId + 1;
 };
+
 app.post("/api/persons", (request, response) => {
   const { name, phone } = request.body;
 
@@ -109,6 +108,28 @@ app.post("/api/persons", (request, response) => {
   });
 });
 
+// put
+app.put("/api/persons/:id", (request, response, next) => {
+  const { phone } = request.body;
+
+  if (!phone) {
+    return response.status(400).json({ error: "Phone number is required" });
+  }
+
+  Person.findByIdAndUpdate(
+    request.params.id,
+    { phone },
+    { new: true, runValidators: true, context: "query" }
+  )
+    .then((updatedPerson) => {
+      if (!updatedPerson) {
+        return response.status(404).json({ error: "Person not found" });
+      }
+      response.json(updatedPerson);
+    })
+    .catch((error) => next(error));
+});
+
 // Servir el frontend en caso de rutas desconocidas
 app.get("*", (req, res) => {
   res.sendFile(path.resolve(__dirname, "dist", "index.html"));
@@ -119,3 +140,17 @@ const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
+
+// controlador de errores
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message);
+
+  if (error.name === "CastError") {
+    return response.status(400).send({ error: "malformatted id" });
+  }
+
+  next(error);
+};
+
+// este debe ser el último middleware cargado, ¡también todas las rutas deben ser registrada antes que esto!
+app.use(errorHandler);
