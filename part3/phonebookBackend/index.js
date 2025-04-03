@@ -94,7 +94,7 @@ const generateId = () => {
   return maxId + 1;
 };
 
-app.post("/api/persons", (request, response) => {
+app.post("/api/persons", (request, response, next) => {
   const { name, phone } = request.body;
 
   if (!name || !phone) {
@@ -103,9 +103,12 @@ app.post("/api/persons", (request, response) => {
 
   const person = new Person({ name, phone });
 
-  person.save().then((savedPerson) => {
-    response.json(savedPerson);
-  });
+  person
+    .save()
+    .then((savedPerson) => {
+      response.json(savedPerson);
+    })
+    .catch((error) => next(error));
 });
 
 // put
@@ -147,9 +150,11 @@ const errorHandler = (error, request, response, next) => {
 
   if (error.name === "CastError") {
     return response.status(400).send({ error: "malformatted id" });
+  } else if (error.name === "ValidationError") {
+    return response.status(400).json({ error: error.message });
   }
 
-  next(error);
+  return response.status(500).json({ error: "Internal Server Error" });
 };
 
 // este debe ser el último middleware cargado, ¡también todas las rutas deben ser registrada antes que esto!
