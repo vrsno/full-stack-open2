@@ -24,6 +24,9 @@ export default [
       "@stylistic/js/semi": ["error", "never"],
       "no-undef": "off",
       "no-unused-vars": "off",
+      "@stylistic/js/quotes": "off",
+      "@stylistic/js/semi": "off",
+      "@stylistic/js/linebreak-style": "off",
     },
   },
 ];
